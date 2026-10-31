@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+source db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cities    City[]
+}
+
+model City {
+  id          String   @id @default(uuid())
+  name        String
+  ownerId     String
+  x           Int      @default(0)
+  y           Int      @default(0)
+  level       Int      @default(1)
+  balance     Decimal  @default(0)
+  zoneRadius  Int      @default(50)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  owner       User     @relation(fields: [ownerId], references: [id])
+  buildings   Building[]
+  transactions GameTransaction[]
+  operationLogs OperationLog[]
+}
+
+model Building {
+  id          String    @id @default(uuid())
+  type        String
+  level       Int       @default(1)
+  x           Int
+  y           Int
+  cityId      String
+  ownerId     String
+  builtAt     DateTime  @default(now())
+  upgradedAt  DateTime?
+  maintenanceCost Decimal
+  income       Decimal?
+  city        City      @relation(fields: [cityId], references: [id])
+  owner       User      @relation(fields: [ownerId], references: [id])
+}
+
+model GameTransaction {
+  id          String    @id @default(uuid())
+  cityId      String
+  type        String
+  amount      Decimal
+  timestamp   DateTime
+  status      String
+  metadata    Json?
+  city        City      @relation(fields: [cityId], references: [id])
+}
+
+model OperationLog {
+  id          String    @id @default(uuid())
+  cityId      String
+  type        String
+  payload     Json
+  timestamp   DateTime
+  status      String
+  city        City      @relation(fields: [cityId], references: [id])
+}
