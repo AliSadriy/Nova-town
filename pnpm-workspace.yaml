@@ -1,3 +1,12 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+
+# pnpm >= 10 blocks dependency postinstall scripts unless explicitly allowed.
+# Prisma's engines + client need postinstall to generate the client and fetch
+# query engines. esbuild (used by tsx) optionally self-installs its binary.
+allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
+  esbuild: true
+  prisma: true

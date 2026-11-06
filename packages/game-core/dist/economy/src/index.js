@@ -7,7 +7,9 @@ export const BUILDING_CONFIGS = {
     PARK_SMALL: { cost: 50, income: 0, maintenance: 1 },
     ROAD: { cost: 10, income: 0, maintenance: 0 }
 };
-export const TaxRateSchema = {};
+import { z } from 'zod';
+// Fraction of gross building income collected as city tax, e.g. 0.2 = 20%.
+export const TaxRateSchema = z.number().min(0).max(1);
 export const EconomyCalculator = {
     calculateTaxIncome: (city, buildings) => {
         return buildings.reduce((sum, b) => {

@@ -10,3 +10,4 @@ export const DEFAULT_CAMERA_CONFIG = {
     enablePan: true,
     dampingFactor: 0.05,
 };
+//# sourceMappingURL=cameraConfig.js.map

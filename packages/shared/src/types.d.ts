@@ -102,5 +102,26 @@ export type GameTransaction = {
     timestamp: Date;
     status: string;
 };
-export declare const GameTransactionSchema: z.ZodAny;
+export declare const GameTransactionSchema: z.ZodObject<{
+    id: z.ZodOptional<z.ZodString>;
+    cityId: z.ZodString;
+    type: z.ZodString;
+    amount: z.ZodNumber;
+    timestamp: z.ZodString;
+    status: z.ZodDefault<z.ZodEnum<["PENDING", "COMPLETED", "FAILED", "ROLLED_BACK"]>>;
+}, "strip", z.ZodTypeAny, {
+    type: string;
+    status: "PENDING" | "COMPLETED" | "FAILED" | "ROLLED_BACK";
+    cityId: string;
+    amount: number;
+    timestamp: string;
+    id?: string | undefined;
+}, {
+    type: string;
+    cityId: string;
+    amount: number;
+    timestamp: string;
+    status?: "PENDING" | "COMPLETED" | "FAILED" | "ROLLED_BACK" | undefined;
+    id?: string | undefined;
+}>;
 //# sourceMappingURL=types.d.ts.map

@@ -63,4 +63,11 @@ export type GameTransaction = {
   timestamp: Date;
   status: string;
 };
-export const GameTransactionSchema = z.any();
+export const GameTransactionSchema = z.object({
+  id: z.string().optional(),
+  cityId: z.string(),
+  type: z.string(),
+  amount: z.number(),
+  timestamp: z.string(),
+  status: z.enum(['PENDING', 'COMPLETED', 'FAILED', 'ROLLED_BACK']).default('COMPLETED')
+});

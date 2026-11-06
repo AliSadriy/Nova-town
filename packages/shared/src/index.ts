@@ -1,41 +1,47 @@
-export type PlayerId = string;
-export type CityId = string;
-export type BuildingId = string;
-export type GameTransaction = {
-  id: string;
-  cityId: string;
-  type: string;
-  amount: number;
-  timestamp: Date;
-  status: string;
-};
-export const GameTransactionSchema = {};
+export * from './types';
 
-export type BuildingType = 'RESIDENTIAL_SMALL' | 'RESIDENTIAL_MEDIUM' | 'COMMERCIAL_SHOP' | 'COMMERCIAL_TOWER' | 'INDUSTRIAL_FACTORY' | 'PARK_SMALL' | 'ROAD';
+import { z } from 'zod';
+import { BuildingTypeSchema } from './types';
 
-export type Building = {
-  id: string;
-  cityId: string;
-  type: BuildingType;
-  level: number;
-  x: number;
-  y: number;
-  status: string;
-  createdAt?: string;
-  updatedAt?: string;
-};
+export const SyncOperationSchema = z.object({
+  type: z.enum(['BUILD', 'UPGRADE', 'DEMOLISH', 'COLLECT_TAX']),
+  // Client-generated idempotency key. When the same operationId is replayed
+  // against the same city it is deduplicated and NOT applied twice.
+  operationId: z.string().min(1).max(128).optional(),
+  buildingId: z.string().min(1).max(128).optional(),
+  buildingType: BuildingTypeSchema.optional(),
+  x: z.number().int().nonnegative().optional(),
+  y: z.number().int().nonnegative().optional(),
+  timestamp: z.string().optional()
+});
 
-export type City = {
-  id: string;
-  name: string;
-  userId: string;
-  level: number;
-  population: number;
-  gold: number;
-  energyCapacity: number;
-  energyUsed: number;
-  waterCapacity: number;
-  waterUsed: number;
-  createdAt?: string;
-  updatedAt?: string;
-};
+export const SyncRequestSchema = z.object({
+  cityId: z.string().min(1).max(128),
+  // Cap the number of operations per request to bound payload size.
+  operations: z.array(SyncOperationSchema).max(50)
+});
+
+export const TelegramAuthSchema = z.object({
+  initData: z.string().min(1),
+  // NOTE: the authoritative identity is the verified initData payload ONLY.
+  // These optional fields are never trusted as an identity source.
+  userId: z.string().optional(),
+  username: z.string().optional()
+});
+
+export type SyncOperation = z.infer<typeof SyncOperationSchema>;
+export type SyncRequest = z.infer<typeof SyncRequestSchema>;
+export type TelegramAuthRequest = z.infer<typeof TelegramAuthSchema>;
+
+/** Concrete runtime schema for game transaction payloads (was z.any()). */
+export const GameTransactionPayloadSchema = z.object({
+  id: z.string().min(1).max(128).optional(),
+  cityId: z.string().min(1).max(128),
+  type: z.string().min(1).max(64),
+  // Monetary values must not be negative (the API treats balance changes as
+  // nonnegative amounts; a negative would be a fabricated credit/loss).
+  amount: z.number().nonnegative(),
+  timestamp: z.string().min(1),
+  status: z.enum(['PENDING', 'COMPLETED', 'FAILED', 'ROLLED_BACK'])
+});
+export type GameTransactionPayload = z.infer<typeof GameTransactionPayloadSchema>;

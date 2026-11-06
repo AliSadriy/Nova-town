@@ -7,10 +7,14 @@
     "dev": "tsx src/index.ts",
     "start": "node src/index.ts",
     "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --import tsx/esm __tests__/**/*.test.ts"
   },
   "dependencies": {
     "@fastify/cors": "^8.5.0",
+    "@nova-town/economy": "workspace:*",
+    "@nova-town/shared": "workspace:*",
+    "@prisma/client": "^5.8.0",
     "fastify": "^4.29.1",
     "pino": "^8.21.0",
     "zod": "^3.22.4"

@@ -10,3 +10,4 @@ export function calculateIsometricPosition(center, distance, angle = Math.PI / 4
     const y = center.y + distance * 0.8;
     return new THREE.Vector3(x, y, z);
 }
+//# sourceMappingURL=cameraMath.js.map

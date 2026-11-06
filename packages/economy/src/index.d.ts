@@ -35,7 +35,9 @@ export declare const BUILDING_CONFIGS: {
         maintenance: number;
     };
 };
-export declare const TaxRateSchema: {};
+import { z } from 'zod';
+export declare const TaxRateSchema: z.ZodNumber;
+export type TaxRate = z.infer<typeof TaxRateSchema>;
 export declare const EconomyCalculator: {
     calculateTaxIncome: (city: any, buildings: any[]) => any;
     calculateMaintenanceCost: (buildings: any[]) => any;

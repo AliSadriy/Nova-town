@@ -21,29 +21,29 @@
    - Status: IMPLEMENTED / AUTOMATED TESTED / BUILD VERIFIED
    - Details: Replaced placeholders with real Prisma client queries. Fail-closed on missing DB.
 
-3. **Sync Endpoint Persistence & Idempotency**
+3. **Sync Endpoint Persistence & Idempotency (BUILD, UPGRADE, DEMOLISH, COLLECT_TAX)**
    - Status: IMPLEMENTED / AUTOMATED TESTED / BUILD VERIFIED
-   - Details: Transaction-backed operations with composite unique operation logging.
+   - Details: Transaction-backed operations with composite unique operation logging for all operation types including tax collection.
 
-4. **Prisma Schema DataSource Syntax**
+4. **Prisma Schema DataSource Syntax & Relations**
    - Status: IMPLEMENTED / BUILD VERIFIED
-   - Details: Corrected `source db` to `datasource db`. Validated via `prisma validate`.
+   - Details: Corrected `source db` to `datasource db`, added `telegramId` and `operationId` constraints. Validated via `prisma validate`.
 
 5. **Shared Validation Schemas**
    - Status: IMPLEMENTED / AUTOMATED TESTED / BUILD VERIFIED
-   - Details: Zod schemas for sync requests, operations, and auth fully implemented.
+   - Details: Zod schemas for sync requests, operations, auth, and transaction payloads fully implemented with test coverage.
 
 6. **Database Migration Execution**
    - Status: NOT VERIFIED / BLOCKED (PostgreSQL unavailable)
-   - Details: Migration schema validated and Prisma client generated successfully; live execution pending PostgreSQL instance.
+   - Details: Migration files (`20261106000000_init`) prepared and validated; live execution pending PostgreSQL instance.
 
-7. **Production Secret Management**
+7. **Production Secret Management & CORS**
    - Status: IMPLEMENTED / BUILD VERIFIED
-   - Details: `.env.example` secured with placeholders; fail-closed behavior verified.
+   - Details: `.env.example` secured with placeholders; fail-closed behavior verified; CORS configured securely.
 
 8. **Test Suite Execution**
-   - Status: AUTOMATED TESTED (18/18 API tests passing, all package tests passing).
+   - Status: AUTOMATED TESTED (19 API tests passing, 9 shared schema tests passing, all package tests passing).
 
 9. **Remote GitHub Synchronization**
    - Status: IMPLEMENTED / BUILD VERIFIED / RUNTIME VERIFIED
-   - Details: Branch `fix/critical-remediation` pushed to `origin` (`7fea3ac2`) and verified via `git ls-remote`. Main branch untouched.
+   - Details: Branch `fix/critical-remediation` pushed to `origin` and verified via `git ls-remote`. Main branch untouched.

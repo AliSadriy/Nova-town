@@ -39,5 +39,11 @@ export const PlayerSchema = z.object({
     email: z.string().email(),
     createdAt: z.string().optional()
 });
-export const GameTransactionSchema = z.any();
-//# sourceMappingURL=types.js.map
+export const GameTransactionSchema = z.object({
+    id: z.string().optional(),
+    cityId: z.string(),
+    type: z.string(),
+    amount: z.number(),
+    timestamp: z.string(),
+    status: z.enum(['PENDING', 'COMPLETED', 'FAILED', 'ROLLED_BACK']).default('COMPLETED')
+});

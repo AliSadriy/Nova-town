@@ -6,7 +6,9 @@
   "packageManager": "pnpm@12.16.1",
   "scripts": {
     "build:packages": "npx tsc --project packages/shared/tsconfig.json && npx tsc --project packages/economy/tsconfig.json && npx tsc --project packages/game-core/tsconfig.json && npx tsc --project packages/game-engine/tsconfig.json",
-    "start:api": "node apps/api/src/server.ts",
+    "start:api": "tsx apps/api/src/index.ts",
+    "test": "pnpm --filter @nova-town/shared test && pnpm --filter @nova-town/economy test && pnpm --filter @nova-town/game-core test && pnpm --filter @nova-town/api test",
+    "build:all": "pnpm build:packages && pnpm --filter @nova-town/api build",
     "typecheck": "node -e \"console.log('Type check passed for all packages')\""
   },
   "devDependencies": {

@@ -64,8 +64,13 @@ export function extractTelegramUser(initData: string): { id: string; username?: 
     const userStr = new URLSearchParams(initData).get('user');
     if (!userStr) return null;
     const user = JSON.parse(userStr) as { id?: number | string; username?: string };
-    if (user.id === undefined || user.id === null) return null;
-    return { id: String(user.id), username: user.username };
+    // Telegram user ids are positive integers (or numeric strings). Reject
+    // anything malformed — identity must come only from trusted data.
+    const id = typeof user.id === 'number' ? user.id : user.id != null ? Number(user.id) : NaN;
+    if (!Number.isInteger(id) || id <= 0) return null;
+    const out: { id: string; username?: string } = { id: String(id) };
+    if (typeof user.username === 'string' && user.username.length > 0) out.username = user.username;
+    return out;
   } catch {
     return null;
   }
@@ -120,7 +125,14 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
   const prisma = deps.prisma ?? new PrismaClient();
   const fastify = Fastify({ logger: false });
 
-  fastify.register(cors, { origin: true });
+  // CORS: an explicit origin allow-list when CORS_ORIGIN is set (comma-separated);
+  // otherwise origin reflection is enabled for local development. Production
+  // deployments must set CORS_ORIGIN to their concrete origins (never "*").
+  const corsOrigin = (env.CORS_ORIGIN || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  fastify.register(cors, { origin: corsOrigin.length > 0 ? corsOrigin : true });
 
   // Authentication is enforced inside the endpoint handlers (authenticate()),
   // which read the Authorization header, so behavior is directly testable.
@@ -150,6 +162,12 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
       return reply.status(400).send({ error: 'initData does not contain a user' });
     }
 
+    // A session token can only be issued when a session secret is configured.
+    // Fail closed — never return an empty or unsigned token.
+    if (!sessionSecret) {
+      return reply.status(503).send({ error: 'Session issuance unavailable: JWT_SECRET not configured' });
+    }
+
     let result: { user: any; city: any };
     try {
       result = await upsertTelegramUser(prisma, telegramUser);
@@ -159,9 +177,7 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
       return reply.status(503).send({ error: 'Database unavailable' });
     }
 
-    const token = sessionSecret
-      ? createSessionToken(result.user.id, sessionSecret)
-      : '';
+    const token = createSessionToken(result.user.id, sessionSecret);
     return {
       success: true,
       token,
@@ -379,6 +395,21 @@ async function handleCitySync(request: any, reply: any, prisma: PrismaClient) {
                 metadata: { operationId: op.operationId ?? null },
               },
             });
+            // Record in the operation log in the SAME transaction so a replayed
+            // COLLECT_TAX with the same operationId is deduplicated (cannot be
+            // credited twice).
+            if (op.operationId) {
+              await tx.operationLog.create({
+                data: {
+                  cityId,
+                  operationId: op.operationId,
+                  type: op.type,
+                  payload: { amount },
+                  status: 'COMPLETED',
+                  timestamp: new Date(),
+                },
+              });
+            }
             processed.push({ type: op.type, operationId: op.operationId, status: 'COMPLETED' });
             break;
           }

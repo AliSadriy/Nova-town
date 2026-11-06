@@ -7,7 +7,12 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@nova-town/shared": ["../../packages/shared/src/index.ts"],
+      "@prisma/client": ["../../packages/database/node_modules/@prisma/client"]
+    }
   },
   "include": ["src/**/*"]
 }

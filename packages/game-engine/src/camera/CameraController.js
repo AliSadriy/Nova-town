@@ -36,3 +36,4 @@ export const CameraController = ({ config, worldBounds }) => {
     return (_jsx(OrbitControls, { ref: controlsRef, makeDefault: true, enableDamping: true, dampingFactor: config.dampingFactor, minDistance: config.minZoom, maxDistance: config.maxZoom, minPolarAngle: config.minPolarAngle, maxPolarAngle: config.maxPolarAngle, enableRotate: config.enableRotate, enableZoom: config.enableZoom, enablePan: config.enablePan }));
 };
 export default CameraController;
+//# sourceMappingURL=CameraController.js.map
