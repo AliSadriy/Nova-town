@@ -79,12 +79,31 @@ export function createSessionToken(userId, secret, now = Date.now()) {
     return signToken({ userId, iat: now, exp: now + SESSION_TTL_MS }, secret);
 }
 export function verifySessionToken(token, secret, now = Date.now()) {
-    const [body, sig] = String(token).split('.');
-    if (!body || !sig)
-        return { valid: false, reason: 'malformed token' };
-    const expected = crypto.createHmac('sha256', secret).update(body).digest('base64url');
+    if (typeof token !== 'string' || typeof secret !== 'string' || !secret) {
+        return { valid: false, reason: 'invalid arguments' };
+    }
+    const parts = token.split('.');
+    if (parts.length !== 2) {
+        return { valid: false, reason: 'malformed token (must have exactly two segments)' };
+    }
+    const [body, sig] = parts;
+    if (!body || !sig) {
+        return { valid: false, reason: 'malformed token segments' };
+    }
+    // Validate base64url encoding for body and sig
+    const base64UrlRegex = /^[A-Za-z0-9\-_]+$/;
+    if (!base64UrlRegex.test(body) || !base64UrlRegex.test(sig)) {
+        return { valid: false, reason: 'malformed base64url encoding' };
+    }
+    let expectedSig;
+    try {
+        expectedSig = crypto.createHmac('sha256', secret).update(body).digest('base64url');
+    }
+    catch {
+        return { valid: false, reason: 'signature computation failed' };
+    }
     const a = Buffer.from(sig, 'base64url');
-    const b = Buffer.from(expected, 'base64url');
+    const b = Buffer.from(expectedSig, 'base64url');
     if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
         return { valid: false, reason: 'bad signature' };
     }
@@ -93,12 +112,28 @@ export function verifySessionToken(token, secret, now = Date.now()) {
         payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
     }
     catch {
-        return { valid: false, reason: 'bad payload' };
+        return { valid: false, reason: 'bad payload JSON' };
     }
-    if (!payload.userId)
-        return { valid: false, reason: 'missing userId' };
-    if (typeof payload.exp === 'number' && now > payload.exp)
+    if (!payload || typeof payload !== 'object') {
+        return { valid: false, reason: 'invalid payload structure' };
+    }
+    if (typeof payload.userId !== 'string' || payload.userId.trim() === '') {
+        return { valid: false, reason: 'missing or invalid userId' };
+    }
+    if (typeof payload.iat !== 'number' || !Number.isFinite(payload.iat)) {
+        return { valid: false, reason: 'missing or invalid iat' };
+    }
+    if (typeof payload.exp !== 'number' || !Number.isFinite(payload.exp)) {
+        return { valid: false, reason: 'missing or invalid exp' };
+    }
+    // Clock skew allowance: 60 seconds (1 minute) into the future for iat
+    const CLOCK_SKEW_MS = 60 * 1000;
+    if (payload.iat > now + CLOCK_SKEW_MS) {
+        return { valid: false, reason: 'token issued in the future' };
+    }
+    if (now > payload.exp) {
         return { valid: false, reason: 'token expired' };
+    }
     return { valid: true, userId: payload.userId };
 }
 // ---------------------------------------------------------------------------
@@ -113,14 +148,49 @@ function getSecrets() {
 export function createApp(deps = {}) {
     const prisma = deps.prisma ?? new PrismaClient();
     const fastify = Fastify({ logger: false });
-    // CORS: an explicit origin allow-list when CORS_ORIGIN is set (comma-separated);
-    // otherwise origin reflection is enabled for local development. Production
-    // deployments must set CORS_ORIGIN to their concrete origins (never "*").
-    const corsOrigin = (env.CORS_ORIGIN || '')
+    // CORS Configuration & Enforcement:
+    // - Parse CORS_ORIGIN as a comma-separated allow-list.
+    // - In production (NODE_ENV=production), fail startup (throw error) if no explicit
+    //   allowed origins are configured or if "*" is used.
+    // - Local development allows localhost/127.0.0.1 or explicit origins.
+    const isProduction = env.NODE_ENV === 'production';
+    const rawCors = (env.CORS_ORIGIN || '').trim();
+    if (isProduction) {
+        if (!rawCors || rawCors === '*') {
+            throw new Error('SECURITY ERROR: CORS_ORIGIN must be explicitly configured with trusted origins in production (wildcard "*" and empty values are prohibited).');
+        }
+    }
+    const corsOrigin = rawCors
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
-    fastify.register(cors, { origin: corsOrigin.length > 0 ? corsOrigin : true });
+    fastify.register(cors, {
+        origin: (origin, cb) => {
+            // Allow requests with no origin (e.g. mobile apps, curl, server-side fetch)
+            if (!origin) {
+                cb(null, true);
+                return;
+            }
+            if (corsOrigin.length === 0) {
+                // Development default: allow localhost / 127.0.0.1
+                if (!isProduction && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) {
+                    cb(null, true);
+                    return;
+                }
+                cb(new Error('CORS blocked: origin not allowed'), false);
+                return;
+            }
+            if (corsOrigin.includes('*') && isProduction) {
+                cb(new Error('CORS blocked: wildcard origin not permitted in production'), false);
+                return;
+            }
+            if (corsOrigin.includes('*') || corsOrigin.includes(origin)) {
+                cb(null, true);
+                return;
+            }
+            cb(new Error('CORS blocked: origin not allowed'), false);
+        },
+    });
     // Authentication is enforced inside the endpoint handlers (authenticate()),
     // which read the Authorization header, so behavior is directly testable.
     fastify.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));

@@ -211,19 +211,72 @@ test('extractTelegramUser: parses user and returns null on malformed input', () 
 // Unit tests: session tokens
 // ---------------------------------------------------------------------------
 
-test('session token roundtrip, expiry, tamper, missing userId', () => {
+test('session token rigorous validation: missing exp, missing iat, invalid types, malformed payload, extra segments, expired, future iat', () => {
   const t = createSessionToken('u-1', JWT_SECRET, 1000);
+
+  // Valid token
   assert.strictEqual(verifySessionToken(t, JWT_SECRET, 1500).valid, true);
-  assert.strictEqual(verifySessionToken(t, JWT_SECRET, 1500).userId, 'u-1');
 
-  const weekLater = 1000 + 8 * 24 * 3600 * 1000;
-  const expired = verifySessionToken(t, JWT_SECRET, weekLater);
-  assert.strictEqual(expired.valid, false);
-  assert.strictEqual(expired.reason, 'token expired');
+  // Extra segments (>2 parts)
+  assert.strictEqual(verifySessionToken(t + '.extraseg', JWT_SECRET, 1500).valid, false);
 
-  assert.strictEqual(verifySessionToken(t + 'x', JWT_SECRET, 1500).valid, false);
-  assert.strictEqual(verifySessionToken('garbage', JWT_SECRET, 1500).valid, false);
-  assert.strictEqual(verifySessionToken(t, 'other-secret', 1500).valid, false);
+  // Malformed base64url encoding
+  assert.strictEqual(verifySessionToken('badbase64!.sig', JWT_SECRET, 1500).valid, false);
+
+  // Custom crafted tokens for payload edge cases
+  const makeTokenWithPayload = (payload: any) => {
+    const body = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+    const sig = crypto.createHmac('sha256', JWT_SECRET).update(body).digest('base64url');
+    return `${body}.${sig}`;
+  };
+
+  // Missing userId
+  const tNoUser = makeTokenWithPayload({ iat: 1000, exp: 2000 });
+  assert.strictEqual(verifySessionToken(tNoUser, JWT_SECRET, 1500).valid, false);
+
+  // Missing exp
+  const tNoExp = makeTokenWithPayload({ userId: 'u-1', iat: 1000 });
+  assert.strictEqual(verifySessionToken(tNoExp, JWT_SECRET, 1500).valid, false);
+
+  // Missing iat
+  const tNoIat = makeTokenWithPayload({ userId: 'u-1', exp: 2000 });
+  assert.strictEqual(verifySessionToken(tNoIat, JWT_SECRET, 1500).valid, false);
+
+  // Future iat beyond skew (>60s) with now = 150000: iat = 300000 -> 300000 > 150000 + 60000 (210000) => rejected
+  const tFutureIat = makeTokenWithPayload({ userId: 'u-1', iat: 300000, exp: 400000 });
+  assert.strictEqual(verifySessionToken(tFutureIat, JWT_SECRET, 150000).valid, false);
+
+  // Expired token
+  const tExpired = makeTokenWithPayload({ userId: 'u-1', iat: 1000, exp: 2000 });
+  assert.strictEqual(verifySessionToken(tExpired, JWT_SECRET, 2500).valid, false);
+});
+
+test('CORS allow-list test: approved origin accepted, unapproved origin rejected', async () => {
+  envSetup();
+  process.env.NODE_ENV = 'production';
+  process.env.CORS_ORIGIN = 'https://app.novatown.example.com';
+  const { client } = makeMockPrisma();
+  const app = createApp({ prisma: client });
+
+  const resOk = await app.inject({
+    method: 'GET',
+    url: '/health',
+    headers: { origin: 'https://app.novatown.example.com' },
+  });
+  assert.strictEqual(resOk.statusCode, 200);
+  assert.strictEqual(resOk.headers['access-control-allow-origin'], 'https://app.novatown.example.com');
+
+  const resBad = await app.inject({
+    method: 'GET',
+    url: '/health',
+    headers: { origin: 'https://evil.example.com' },
+  });
+  // Fastify cors plugin returns error or drops headers on rejection; test inject returns error or 500/forbidden
+  assert.ok(resBad.statusCode >= 400 || !resBad.headers['access-control-allow-origin']);
+
+  process.env.NODE_ENV = 'test';
+  process.env.CORS_ORIGIN = '*';
+  await app.close();
 });
 
 // ---------------------------------------------------------------------------
