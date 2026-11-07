@@ -125,6 +125,13 @@ function makeMockPrisma() {
         return state.operationLogs.find((o) => o.cityId === key.cityId && o.operationId === key.operationId) ?? null;
       },
       create: async ({ data }: any) => {
+        // Enforce P2002 unique constraint on [cityId, operationId] if already logged
+        const existing = state.operationLogs.find((o) => o.cityId === data.cityId && o.operationId === data.operationId);
+        if (existing) {
+          const err: any = new Error('Unique constraint failed on the fields: (`cityId`,`operationId`)');
+          err.code = 'P2002';
+          throw err;
+        }
         const op = { id: uuid(), timestamp: data.timestamp, ...data };
         state.operationLogs.push(op);
         return op;
@@ -533,3 +540,59 @@ test('missing JWT_SECRET fails closed: protected endpoints return 503', async ()
 
   await app.close();
 });
+
+test('POST /city/sync: concurrent duplicate operationId (P2002 conflict) correctly catches and deduplicates', async () => {
+  envSetup();
+  const { client, state } = makeMockPrisma();
+  const user = { id: 'user-race', telegramId: '99' };
+  state.users.push(user);
+  state.cities.push({ id: 'city-race', name: 'CRace', ownerId: user.id, balance: 1000, level: 1, x: 0, y: 0, zoneRadius: 50, createdAt: new Date(), updatedAt: new Date() });
+
+  const app = createApp({ prisma: client });
+  const token = createSessionToken(user.id, JWT_SECRET);
+
+  const payload = {
+    cityId: 'city-race',
+    operations: [{ type: 'BUILD', buildingType: 'RESIDENTIAL_SMALL', operationId: 'race-op-1' }],
+  };
+
+  // Simulate concurrent requests arriving with the same operationId
+  const [res1, res2] = await Promise.all([
+    call(app, 'POST', '/api/v1/city/sync', payload, { authorization: `Bearer ${token}` }),
+    call(app, 'POST', '/api/v1/city/sync', payload, { authorization: `Bearer ${token}` }),
+  ]);
+
+  assert.strictEqual(res1.status, 200);
+  assert.strictEqual(res2.status, 200);
+
+  // One succeeded as COMPLETED, one as DUPLICATE (via P2002 catch)
+  const statuses = [res1.data.processedOperations[0].status, res2.data.processedOperations[0].status].sort();
+  assert.deepStrictEqual(statuses, ['COMPLETED', 'DUPLICATE']);
+
+  // Balance deducted exactly once (1000 - 100 = 900)
+  assert.strictEqual(res1.data.city.balance === 900 || res2.data.city.balance === 900, true);
+  assert.strictEqual(state.buildings.length, 1);
+
+  await app.close();
+});
+
+test('POST /city/sync: rejects missing or empty operationId with 400', async () => {
+  envSetup();
+  const { client, state } = makeMockPrisma();
+  const user = { id: 'user-op', telegramId: '77' };
+  state.users.push(user);
+  state.cities.push({ id: 'city-op', name: 'COp', ownerId: user.id, balance: 1000, level: 1, x: 0, y: 0, zoneRadius: 50, createdAt: new Date(), updatedAt: new Date() });
+
+  const app = createApp({ prisma: client });
+  const token = createSessionToken(user.id, JWT_SECRET);
+
+  const res = await call(app, 'POST', '/api/v1/city/sync', {
+    cityId: 'city-op',
+    operations: [{ type: 'BUILD', buildingType: 'RESIDENTIAL_SMALL', operationId: '' }],
+  }, { authorization: `Bearer ${token}` });
+
+  assert.strictEqual(res.status, 400);
+
+  await app.close();
+});
+

@@ -3,11 +3,22 @@ export * from './types';
 import { z } from 'zod';
 import { BuildingTypeSchema } from './types';
 
+/**
+ * Client-generated idempotency key. REQUIRED for every mutating operation.
+ * - non-empty (trim().min(1) also rejects whitespace-only values)
+ * - at most 128 characters
+ * The API reserves this key in the database (OperationLog, composite unique
+ * [cityId, operationId]) BEFORE applying the mutation; a replayed or
+ * concurrently-racing request with the same key is deduplicated and its
+ * mutation is never applied twice.
+ */
+export const OperationIdSchema = z.string().trim().min(1).max(128);
+
 export const SyncOperationSchema = z.object({
   type: z.enum(['BUILD', 'UPGRADE', 'DEMOLISH', 'COLLECT_TAX']),
-  // Client-generated idempotency key. When the same operationId is replayed
-  // against the same city it is deduplicated and NOT applied twice.
-  operationId: z.string().min(1).max(128).optional(),
+  // Mandatory for every mutating operation (BUILD/UPGRADE/DEMOLISH/COLLECT_TAX).
+  // Missing, empty or whitespace-only ids are rejected by the API with 400.
+  operationId: OperationIdSchema,
   buildingId: z.string().min(1).max(128).optional(),
   buildingType: BuildingTypeSchema.optional(),
   x: z.number().int().nonnegative().optional(),

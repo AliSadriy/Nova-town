@@ -1,8 +1,18 @@
 export * from './types';
 import { z } from 'zod';
+/**
+ * Client-generated idempotency key. REQUIRED for every mutating operation.
+ * - non-empty (trim().min(1) also rejects whitespace-only values)
+ * - at most 128 characters
+ * The API reserves this key in the database (OperationLog, composite unique
+ * [cityId, operationId]) BEFORE applying the mutation; a replayed or
+ * concurrently-racing request with the same key is deduplicated and its
+ * mutation is never applied twice.
+ */
+export declare const OperationIdSchema: z.ZodString;
 export declare const SyncOperationSchema: z.ZodObject<{
     type: z.ZodEnum<["BUILD", "UPGRADE", "DEMOLISH", "COLLECT_TAX"]>;
-    operationId: z.ZodOptional<z.ZodString>;
+    operationId: z.ZodString;
     buildingId: z.ZodOptional<z.ZodString>;
     buildingType: z.ZodOptional<z.ZodEnum<["RESIDENTIAL_SMALL", "RESIDENTIAL_MEDIUM", "COMMERCIAL_SHOP", "COMMERCIAL_TOWER", "INDUSTRIAL_FACTORY", "PARK_SMALL", "ROAD"]>>;
     x: z.ZodOptional<z.ZodNumber>;
@@ -10,18 +20,18 @@ export declare const SyncOperationSchema: z.ZodObject<{
     timestamp: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     type: "BUILD" | "UPGRADE" | "DEMOLISH" | "COLLECT_TAX";
+    operationId: string;
     x?: number | undefined;
     y?: number | undefined;
     timestamp?: string | undefined;
-    operationId?: string | undefined;
     buildingId?: string | undefined;
     buildingType?: "RESIDENTIAL_SMALL" | "RESIDENTIAL_MEDIUM" | "COMMERCIAL_SHOP" | "COMMERCIAL_TOWER" | "INDUSTRIAL_FACTORY" | "PARK_SMALL" | "ROAD" | undefined;
 }, {
     type: "BUILD" | "UPGRADE" | "DEMOLISH" | "COLLECT_TAX";
+    operationId: string;
     x?: number | undefined;
     y?: number | undefined;
     timestamp?: string | undefined;
-    operationId?: string | undefined;
     buildingId?: string | undefined;
     buildingType?: "RESIDENTIAL_SMALL" | "RESIDENTIAL_MEDIUM" | "COMMERCIAL_SHOP" | "COMMERCIAL_TOWER" | "INDUSTRIAL_FACTORY" | "PARK_SMALL" | "ROAD" | undefined;
 }>;
@@ -29,7 +39,7 @@ export declare const SyncRequestSchema: z.ZodObject<{
     cityId: z.ZodString;
     operations: z.ZodArray<z.ZodObject<{
         type: z.ZodEnum<["BUILD", "UPGRADE", "DEMOLISH", "COLLECT_TAX"]>;
-        operationId: z.ZodOptional<z.ZodString>;
+        operationId: z.ZodString;
         buildingId: z.ZodOptional<z.ZodString>;
         buildingType: z.ZodOptional<z.ZodEnum<["RESIDENTIAL_SMALL", "RESIDENTIAL_MEDIUM", "COMMERCIAL_SHOP", "COMMERCIAL_TOWER", "INDUSTRIAL_FACTORY", "PARK_SMALL", "ROAD"]>>;
         x: z.ZodOptional<z.ZodNumber>;
@@ -37,18 +47,18 @@ export declare const SyncRequestSchema: z.ZodObject<{
         timestamp: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         type: "BUILD" | "UPGRADE" | "DEMOLISH" | "COLLECT_TAX";
+        operationId: string;
         x?: number | undefined;
         y?: number | undefined;
         timestamp?: string | undefined;
-        operationId?: string | undefined;
         buildingId?: string | undefined;
         buildingType?: "RESIDENTIAL_SMALL" | "RESIDENTIAL_MEDIUM" | "COMMERCIAL_SHOP" | "COMMERCIAL_TOWER" | "INDUSTRIAL_FACTORY" | "PARK_SMALL" | "ROAD" | undefined;
     }, {
         type: "BUILD" | "UPGRADE" | "DEMOLISH" | "COLLECT_TAX";
+        operationId: string;
         x?: number | undefined;
         y?: number | undefined;
         timestamp?: string | undefined;
-        operationId?: string | undefined;
         buildingId?: string | undefined;
         buildingType?: "RESIDENTIAL_SMALL" | "RESIDENTIAL_MEDIUM" | "COMMERCIAL_SHOP" | "COMMERCIAL_TOWER" | "INDUSTRIAL_FACTORY" | "PARK_SMALL" | "ROAD" | undefined;
     }>, "many">;
@@ -56,10 +66,10 @@ export declare const SyncRequestSchema: z.ZodObject<{
     cityId: string;
     operations: {
         type: "BUILD" | "UPGRADE" | "DEMOLISH" | "COLLECT_TAX";
+        operationId: string;
         x?: number | undefined;
         y?: number | undefined;
         timestamp?: string | undefined;
-        operationId?: string | undefined;
         buildingId?: string | undefined;
         buildingType?: "RESIDENTIAL_SMALL" | "RESIDENTIAL_MEDIUM" | "COMMERCIAL_SHOP" | "COMMERCIAL_TOWER" | "INDUSTRIAL_FACTORY" | "PARK_SMALL" | "ROAD" | undefined;
     }[];
@@ -67,10 +77,10 @@ export declare const SyncRequestSchema: z.ZodObject<{
     cityId: string;
     operations: {
         type: "BUILD" | "UPGRADE" | "DEMOLISH" | "COLLECT_TAX";
+        operationId: string;
         x?: number | undefined;
         y?: number | undefined;
         timestamp?: string | undefined;
-        operationId?: string | undefined;
         buildingId?: string | undefined;
         buildingType?: "RESIDENTIAL_SMALL" | "RESIDENTIAL_MEDIUM" | "COMMERCIAL_SHOP" | "COMMERCIAL_TOWER" | "INDUSTRIAL_FACTORY" | "PARK_SMALL" | "ROAD" | undefined;
     }[];

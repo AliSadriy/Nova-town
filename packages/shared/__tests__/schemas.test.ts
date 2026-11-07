@@ -28,12 +28,25 @@ test('SyncOperationSchema rejects invalid coordinates (negative / non-integer)',
   assert.strictEqual(SyncOperationSchema.safeParse({ type: 'BUILD', y: 1.5 }).success, false);
 });
 
-test('SyncOperationSchema rejects malformed operationId (empty / oversized)', () => {
+test('SyncOperationSchema rejects malformed operationId (empty / whitespace-only / oversized)', () => {
   assert.strictEqual(SyncOperationSchema.safeParse({ type: 'BUILD', operationId: '' }).success, false);
+  assert.strictEqual(SyncOperationSchema.safeParse({ type: 'BUILD', operationId: '   ' }).success, false);
   assert.strictEqual(
     SyncOperationSchema.safeParse({ type: 'BUILD', operationId: 'x'.repeat(129) }).success,
     false,
   );
+});
+
+test('SyncOperationSchema requires operationId for every mutating operation', () => {
+  for (const type of ['BUILD', 'UPGRADE', 'DEMOLISH', 'COLLECT_TAX'] as const) {
+    assert.strictEqual(
+      SyncOperationSchema.safeParse({ type }).success,
+      false,
+      `operationId must be required for ${type}`,
+    );
+    const ok = SyncOperationSchema.safeParse({ type, operationId: `op-${type}` });
+    assert.ok(ok.success, `${type} with operationId should be accepted`);
+  }
 });
 
 test('SyncRequestSchema rejects empty cityId and oversized operation arrays', () => {

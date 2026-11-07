@@ -9,7 +9,7 @@
     "start:api": "tsx apps/api/src/index.ts",
     "test": "pnpm --filter @nova-town/shared test && pnpm --filter @nova-town/economy test && pnpm --filter @nova-town/game-core test && pnpm --filter @nova-town/api test",
     "build:all": "pnpm build:packages && pnpm --filter @nova-town/api build",
-    "typecheck": "pnpm --filter @nova-town/shared typecheck && pnpm --filter @nova-town/economy typecheck && pnpm --filter @nova-town/game-core typecheck && pnpm --filter @nova-town/game-engine typecheck && pnpm --filter @nova-town/database typecheck && pnpm --filter @nova-town/api typecheck"
+    "typecheck": "pnpm --filter @nova-town/shared typecheck && pnpm --filter @nova-town/economy typecheck && pnpm --filter @nova-town/game-core typecheck && pnpm --filter @nova-town/game-engine typecheck && pnpm --filter @nova-town/database typecheck && pnpm --filter @nova-town/api typecheck && pnpm --filter @nova-town/android typecheck && pnpm --filter @nova-town/telegram typecheck && pnpm --filter @nova-town/web typecheck"
   },
   "devDependencies": {
     "typescript": "^5.3.3"
